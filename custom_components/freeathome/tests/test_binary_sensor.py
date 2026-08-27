@@ -8,10 +8,13 @@ from async_mock import patch, AsyncMock
 from fah.pfreeathome import Client
 from fah.devices.fah_binary_sensor import FahBinarySensor, CYCLIC_PERIOD
 from fah.const import (
+        PID_RELATIVE_SET_VALUE,
+        PID_SWITCH_ON_OFF,
         PID_PRESENCE,
         PID_FIRE_ALARM_ACTIVE,
         PID_WINDOW_DOOR_POSITION,
         )
+from fah_event import create_event_data
 from common import load_fixture
 
 LOG = logging.getLogger(__name__)
@@ -158,6 +161,20 @@ class TestBinarySensors8Gang:
         assert dimming_sensor.serialnumber == "ABB2E0612345"
         assert dimming_sensor.channel_id == "ch0001"
         assert dimming_sensor.state == "0"
+
+        events = []
+
+        async def callback(_, event):
+            events.append(event)
+
+        dimming_sensor.register_datapoint_updated_cb(callback)
+        await client.update_devices(load_fixture("B008_update_dimming_sensor.xml"))
+        assert events == [{
+                "pid": PID_RELATIVE_SET_VALUE,
+                "raw_value": "9",
+                "command": "dim_start",
+                "direction": "up",
+                }]
 
         # Dimming sensor
         dimming_sensor = next((el for el in sensor_devices if el.lookup_key == "ABB2E0612345/ch0002"))
@@ -370,3 +387,152 @@ class TestCyclicRepeatFilter:
             sensor.update_datapoint("odp0001", "50")
         assert sensor.window_position == "50"
         assert sensor.state is None
+
+
+class TestBinarySensorEvents:
+    """Binary sensor datapoint updates must retain their protocol semantics."""
+
+    def make_sensor(self, datapoints):
+        return FahBinarySensor(
+                None, {}, "ABB7F62FF48B", "ch0000", "0001",
+                "Sensor/Dimmaktor 1/1-fach", datapoints)
+
+    async def collect_event(self, sensor, dp, value):
+        events = []
+
+        async def callback(device, event):
+            assert device is sensor
+            events.append(event)
+
+        sensor.register_datapoint_updated_cb(callback)
+        sensor.update_datapoint(dp, value)
+        await sensor.after_update()
+        sensor.unregister_datapoint_updated_cb(callback)
+        return events
+
+    @pytest.mark.parametrize(
+            ("value", "expected_state"),
+            (("0", False), ("1", True)))
+    async def test_switch_press_remains_backward_compatible(
+            self, value, expected_state):
+        sensor = self.make_sensor({PID_SWITCH_ON_OFF: "odp0000"})
+
+        events = await self.collect_event(sensor, "odp0000", value)
+
+        assert sensor.state == ('1' if expected_state else '0')
+        assert events == [{
+                "pid": PID_SWITCH_ON_OFF,
+                "raw_value": value,
+                "command": "pressed",
+                "state": expected_state,
+                }]
+
+    @pytest.mark.parametrize(
+            ("value", "command", "direction", "expected_state"),
+            (
+                ("9", "dim_start", "up", "1"),
+                ("8", "dim_stop", "up", "0"),
+                ("1", "dim_start", "down", "1"),
+                ("0", "dim_stop", "down", "0"),
+            ))
+    async def test_relative_dimming_capture_values(
+            self, value, command, direction, expected_state):
+        # Values captured from ABB7F62FF48B/ch0000, PID 0x0010, on 2026-08-27.
+        sensor = self.make_sensor({PID_RELATIVE_SET_VALUE: "odp0003"})
+
+        events = await self.collect_event(sensor, "odp0003", value)
+
+        assert sensor.state == expected_state
+        assert events == [{
+                "pid": PID_RELATIVE_SET_VALUE,
+                "raw_value": value,
+                "command": command,
+                "direction": direction,
+                }]
+
+    @pytest.mark.parametrize(
+            ("start_value", "stop_value", "direction"),
+            (("9", "8", "up"), ("1", "0", "down")))
+    async def test_relative_dimming_events_are_delivered_in_order(
+            self, start_value, stop_value, direction):
+        sensor = self.make_sensor({PID_RELATIVE_SET_VALUE: "odp0003"})
+        events = []
+
+        async def callback(_, event):
+            events.append(event)
+
+        sensor.register_datapoint_updated_cb(callback)
+        sensor.update_datapoint("odp0003", start_value)
+        sensor.update_datapoint("odp0003", stop_value)
+        await sensor.after_update()
+
+        assert [event["command"] for event in events] == ["dim_start", "dim_stop"]
+        assert [event["direction"] for event in events] == [direction, direction]
+
+    async def test_relative_value_on_unrelated_datapoint_is_not_decoded(self):
+        sensor = self.make_sensor({PID_SWITCH_ON_OFF: "odp0000"})
+
+        events = await self.collect_event(sensor, "odp0000", "9")
+
+        assert events[0]["command"] == "pressed"
+        assert "direction" not in events[0]
+
+    async def test_cyclic_relative_dimming_repeat_is_ignored(self):
+        sensor = self.make_sensor({PID_RELATIVE_SET_VALUE: "odp0003"})
+        events = []
+
+        async def callback(_, event):
+            events.append(event)
+
+        sensor.register_datapoint_updated_cb(callback)
+        with patch("fah.devices.fah_binary_sensor.time.monotonic", return_value=1000.0):
+            sensor.update_datapoint("odp0003", "9")
+        await sensor.after_update()
+
+        with patch("fah.devices.fah_binary_sensor.time.monotonic",
+                   return_value=1000.0 + CYCLIC_PERIOD):
+            sensor.update_datapoint("odp0003", "9")
+        await sensor.after_update()
+
+        assert len(events) == 1
+
+    @pytest.mark.parametrize(
+            ("event", "expected"),
+            (
+                (
+                    {"command": "pressed", "state": True},
+                    {
+                        "name": "Sensor/Dimmaktor 1/1-fach",
+                        "serialnumber": "ABB7F62FF48B",
+                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "command": "pressed",
+                        "state": True,
+                    },
+                ),
+                (
+                    {"command": "dim_start", "direction": "up"},
+                    {
+                        "name": "Sensor/Dimmaktor 1/1-fach",
+                        "serialnumber": "ABB7F62FF48B",
+                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "command": "dim_start",
+                        "direction": "up",
+                    },
+                ),
+                (
+                    {"command": "dim_stop", "direction": "down"},
+                    {
+                        "name": "Sensor/Dimmaktor 1/1-fach",
+                        "serialnumber": "ABB7F62FF48B",
+                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "command": "dim_stop",
+                        "direction": "down",
+                    },
+                ),
+            ))
+    async def test_home_assistant_event_payload(self, event, expected):
+        assert create_event_data(
+                "Sensor/Dimmaktor 1/1-fach",
+                "ABB7F62FF48B",
+                "ABB7F62FF48B/ch0000",
+                event) == expected

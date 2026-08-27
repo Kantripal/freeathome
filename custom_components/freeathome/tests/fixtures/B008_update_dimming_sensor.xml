@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project type="update">
+ <devices>
+  <device serialNumber="ABB2E0612345">
+   <channels>
+    <channel i="ch0001">
+     <outputs>
+      <dataPoint i="odp0001" pairingId="0010">
+       <value>9</value>
+      </dataPoint>
+     </outputs>
+    </channel>
+   </channels>
+  </device>
+ </devices>
+</project>

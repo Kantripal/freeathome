@@ -2,6 +2,7 @@
 import logging
 from homeassistant.components.binary_sensor import (BinarySensorEntity, BinarySensorDeviceClass)
 from .const import DOMAIN
+from .fah_event import create_event_data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,19 +89,17 @@ class FreeAtHomeBinarySensor(BinarySensorEntity):
             """Call after device was updated."""
             await self.async_update_ha_state(True)
 
+        async def datapoint_updated_callback(device, event):
+            """Fire an event containing the decoded datapoint command."""
+            eventdata = create_event_data(
+                self._name, device.serialnumber, self.unique_id, event)
+            self._hass.bus.async_fire("freeathome_event", eventdata)
+
         self.binary_device.register_device_updated_cb(after_update_callback)
+        self.binary_device.register_datapoint_updated_cb(datapoint_updated_callback)
 
     async def async_update(self):
         """Retrieve latest state."""
 
         self._state = (self.binary_device.state == '1')
         _LOGGER.info('update sensor')
-
-        eventdata = {
-            "name"        : self._name,
-            "serialnumber": self.binary_device.serialnumber,
-            "unique_id"   : self.unique_id,
-            "state"       : self._state,
-            "command"     : "pressed"
-        }
-        self._hass.bus.async_fire("freeathome_event", eventdata)
