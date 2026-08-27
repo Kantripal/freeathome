@@ -97,6 +97,12 @@ class FreeAtHomeBinarySensor(BinarySensorEntity):
 
         self.binary_device.register_device_updated_cb(after_update_callback)
         self.binary_device.register_datapoint_updated_cb(datapoint_updated_callback)
+        self.async_on_remove(
+            lambda: self.binary_device.unregister_device_cb(
+                after_update_callback))
+        self.async_on_remove(
+            lambda: self.binary_device.unregister_datapoint_updated_cb(
+                datapoint_updated_callback))
 
     async def async_update(self):
         """Retrieve latest state."""

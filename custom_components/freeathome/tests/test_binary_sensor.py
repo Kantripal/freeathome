@@ -14,7 +14,11 @@ from fah.const import (
         PID_FIRE_ALARM_ACTIVE,
         PID_WINDOW_DOOR_POSITION,
         )
-from fah_event import create_event_data
+from fah_event import (
+        DIMMING_STATUS_OPTIONS,
+        create_event_data,
+        dimming_status_from_event,
+        )
 from common import load_fixture
 
 LOG = logging.getLogger(__name__)
@@ -161,6 +165,7 @@ class TestBinarySensors8Gang:
         assert dimming_sensor.serialnumber == "ABB2E0612345"
         assert dimming_sensor.channel_id == "ch0001"
         assert dimming_sensor.state == "0"
+        assert dimming_sensor.supports_dimming_status()
 
         events = []
 
@@ -392,10 +397,30 @@ class TestCyclicRepeatFilter:
 class TestBinarySensorEvents:
     """Binary sensor datapoint updates must retain their protocol semantics."""
 
-    def make_sensor(self, datapoints):
+    def make_sensor(self, datapoints, function_id=0x1010):
         return FahBinarySensor(
-                None, {}, "ABB7F62FF48B", "ch0000", "0001",
+                None, {}, "ABB700D12345", "ch0000", function_id,
                 "Sensor/Dimmaktor 1/1-fach", datapoints)
+
+    @pytest.mark.parametrize("function_id", (0x0001, 0x0031, 0x1010, 0x1012))
+    async def test_verified_dimming_functions_are_detected(self, function_id):
+        sensor = self.make_sensor(
+                {PID_RELATIVE_SET_VALUE: "odp0003"}, function_id)
+
+        assert sensor.supports_dimming_status()
+
+    @pytest.mark.parametrize("function_id", (0x0000, 0x1018, 0x101A))
+    async def test_non_rocker_relative_datapoint_has_no_four_state_sensor(
+            self, function_id):
+        sensor = self.make_sensor(
+                {PID_RELATIVE_SET_VALUE: "odp0003"}, function_id)
+
+        assert not sensor.supports_dimming_status()
+
+    async def test_dimming_function_without_relative_datapoint_is_not_exposed(self):
+        sensor = self.make_sensor({PID_SWITCH_ON_OFF: "odp0000"})
+
+        assert not sensor.supports_dimming_status()
 
     async def collect_event(self, sensor, dp, value):
         events = []
@@ -437,7 +462,7 @@ class TestBinarySensorEvents:
             ))
     async def test_relative_dimming_capture_values(
             self, value, command, direction, expected_state):
-        # Values captured from ABB7F62FF48B/ch0000, PID 0x0010, on 2026-08-27.
+        # Values captured from a Sensor/Dimmaktor 1/1-fach on 2026-08-27.
         sensor = self.make_sensor({PID_RELATIVE_SET_VALUE: "odp0003"})
 
         events = await self.collect_event(sensor, "odp0003", value)
@@ -503,8 +528,8 @@ class TestBinarySensorEvents:
                     {"command": "pressed", "state": True},
                     {
                         "name": "Sensor/Dimmaktor 1/1-fach",
-                        "serialnumber": "ABB7F62FF48B",
-                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "serialnumber": "ABB700D12345",
+                        "unique_id": "ABB700D12345/ch0000",
                         "command": "pressed",
                         "state": True,
                     },
@@ -513,8 +538,8 @@ class TestBinarySensorEvents:
                     {"command": "dim_start", "direction": "up"},
                     {
                         "name": "Sensor/Dimmaktor 1/1-fach",
-                        "serialnumber": "ABB7F62FF48B",
-                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "serialnumber": "ABB700D12345",
+                        "unique_id": "ABB700D12345/ch0000",
                         "command": "dim_start",
                         "direction": "up",
                     },
@@ -523,8 +548,8 @@ class TestBinarySensorEvents:
                     {"command": "dim_stop", "direction": "down"},
                     {
                         "name": "Sensor/Dimmaktor 1/1-fach",
-                        "serialnumber": "ABB7F62FF48B",
-                        "unique_id": "ABB7F62FF48B/ch0000",
+                        "serialnumber": "ABB700D12345",
+                        "unique_id": "ABB700D12345/ch0000",
                         "command": "dim_stop",
                         "direction": "down",
                     },
@@ -533,6 +558,27 @@ class TestBinarySensorEvents:
     async def test_home_assistant_event_payload(self, event, expected):
         assert create_event_data(
                 "Sensor/Dimmaktor 1/1-fach",
-                "ABB7F62FF48B",
-                "ABB7F62FF48B/ch0000",
+                "ABB700D12345",
+                "ABB700D12345/ch0000",
                 event) == expected
+
+    @pytest.mark.parametrize(
+            ("event", "expected"),
+            (
+                ({"command": "pressed", "state": True}, "pressed_up"),
+                ({"command": "pressed", "state": False}, "pressed_down"),
+                ({"command": "dim_start", "direction": "up"}, "held_up"),
+                ({"command": "dim_start", "direction": "down"}, "held_down"),
+                ({"command": "dim_stop", "direction": "up"}, None),
+                ({"command": "dim_stop", "direction": "down"}, None),
+            ))
+    async def test_dimming_status_mapping(self, event, expected):
+        assert dimming_status_from_event(event) == expected
+
+    async def test_dimming_status_has_exactly_four_options(self):
+        assert DIMMING_STATUS_OPTIONS == [
+                "pressed_up",
+                "pressed_down",
+                "held_up",
+                "held_down",
+                ]

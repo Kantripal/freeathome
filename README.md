@@ -106,6 +106,24 @@ action:
 
 Listen for `command: dim_stop` with the same `unique_id` to stop a repeating brightness action when the rocker is released.
 
+### Dimmer status sensor
+
+Each detected two-sided dimming channel also creates an enum sensor on its
+existing Free@Home device. It shows the last rocker action using exactly four
+states. Single pushbutton channels keep the bus events described above, but do
+not get this four-state sensor because they have no upper/lower rocker pair.
+
+| State          | Meaning               |
+|----------------|-----------------------|
+| `pressed_up`   | Upper rocker pressed  |
+| `pressed_down` | Lower rocker pressed  |
+| `held_up`      | Upper rocker held     |
+| `held_down`    | Lower rocker held     |
+
+Home Assistant translates these states for display. A release still emits the
+`dim_stop` event described above and deliberately leaves the last action visible
+on the status sensor.
+
 
 ## Debugging
 

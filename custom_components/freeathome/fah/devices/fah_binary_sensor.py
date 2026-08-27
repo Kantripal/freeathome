@@ -5,6 +5,7 @@ import time
 from .fah_device import FahDevice
 from ..const import (
         FUNCTION_IDS_BINARY_SENSOR,
+        FUNCTION_IDS_DIMMING_STATUS,
         FUNCTION_IDS_WEATHER_STATION,
         PID_SWITCH_ON_OFF,
         PID_TIMED_START_STOP,
@@ -200,6 +201,11 @@ class FahBinarySensor(FahDevice):
     def is_co_sensor(self):
         """Return true if device is a dimmer"""
         return PID_CO_ALARM_ACTIVE in self._datapoints
+
+    def supports_dimming_status(self):
+        """Return true if this channel provides two-sided dimming actions."""
+        return (self._function_id in FUNCTION_IDS_DIMMING_STATUS and
+                PID_RELATIVE_SET_VALUE in self._datapoints)
 
     def update_parameter(self, param, value):
         LOG.debug("Not yet implemented")
