@@ -27,6 +27,7 @@ else:
 
 from .fah.devices.fah_device import FahDevice
 from .const import DOMAIN
+from .fah_event import DIMMING_STATUS_OPTIONS, dimming_status_from_event
 
 SENSOR_TYPES = {
     "temperature": [
@@ -102,6 +103,11 @@ async def async_setup_entry(hass, config_entry, async_add_devices, discovery_inf
     thermostats = fah.get_devices('thermostat')
     for device_object in thermostats:
         sensors.append(FreeAtHomeThermostatTemperatureSensor(device_object))
+
+    binary_sensors = fah.get_devices('binary_sensor')
+    for device_object in binary_sensors:
+        if device_object.supports_dimming_status():
+            sensors.append(FreeAtHomeDimmingStatusSensor(device_object))
 
     async_add_devices(sensors)
 
@@ -240,3 +246,43 @@ class FreeAtHomeThermostatTemperatureSensor(SensorEntity):
 
     async def async_update(self):
         pass
+
+
+class FreeAtHomeDimmingStatusSensor(SensorEntity):
+    """Expose the last of four dimmer rocker actions as an enum sensor."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_has_entity_name = True
+    _attr_options = DIMMING_STATUS_OPTIONS
+    _attr_translation_key = "dimming_status"
+
+    def __init__(self, device):
+        self.binary_device = device
+        self._attr_device_info = device.device_info
+        self._attr_native_value = None
+        self._attr_translation_placeholders = {
+            "channel_id": device.channel_id,
+        }
+        self._attr_unique_id = f"{device.lookup_key}/dimming_status"
+
+    @property
+    def should_poll(self):
+        """Return that polling is not necessary."""
+        return False
+
+    async def async_added_to_hass(self):
+        """Register the decoded datapoint event callback."""
+        await super().async_added_to_hass()
+
+        async def datapoint_updated_callback(_, event):
+            status = dimming_status_from_event(event)
+            if status is None:
+                return
+            self._attr_native_value = status
+            self.async_write_ha_state()
+
+        self.binary_device.register_datapoint_updated_cb(
+            datapoint_updated_callback)
+        self.async_on_remove(
+            lambda: self.binary_device.unregister_datapoint_updated_cb(
+                datapoint_updated_callback))

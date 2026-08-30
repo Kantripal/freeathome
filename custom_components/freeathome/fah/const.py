@@ -61,6 +61,14 @@ FUNCTION_IDS_BINARY_SENSOR = [
         0x0115, # FID_SENSOR_MOVEMENT_BASIC: Matter-over-Thread motion/presence sensor
         ]
 
+FUNCTION_IDS_DIMMING_STATUS = [
+        0x0001, # Dimming sensor
+        0x0031, # FID_PANEL_DIMMING_SENSOR
+        0x1010, # FID_DIMMING_SENSOR_ROCKER_TYPE0
+        0x1011, # FID_DIMMING_SENSOR_ROCKER_TYPE1
+        0x1012, # FID_DIMMING_SENSOR_ROCKER_TYPE2
+        ]
+
 FUNCTION_IDS_SWITCHING_ACTUATOR = [
         0x0007, # Switch actuator
         0x0045, # Trigger

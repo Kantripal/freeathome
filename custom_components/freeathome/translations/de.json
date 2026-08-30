@@ -53,6 +53,18 @@
       "reauth_successful": "Die erneute Anmeldung war erfolgreich",
       "reconfigure_successful": "Die Neukonfiguration war erfolgreich"
     }
-  }  
+  },
+  "entity": {
+    "sensor": {
+      "dimming_status": {
+        "name": "Dimmerstatus {channel_id}",
+        "state": {
+          "pressed_up": "Oben gedrückt",
+          "pressed_down": "Unten gedrückt",
+          "held_up": "Oben gehalten",
+          "held_down": "Unten gehalten"
+        }
+      }
+    }
+  }
 }
-

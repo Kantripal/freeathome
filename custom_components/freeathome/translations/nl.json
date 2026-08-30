@@ -51,5 +51,18 @@
       "reauth_successful": "Opnieuw aanmelden geslaagd",
       "reconfigure_successful": "Herconfiguratie geslaagd"
     }
+  },
+  "entity": {
+    "sensor": {
+      "dimming_status": {
+        "name": "Dimmerstatus {channel_id}",
+        "state": {
+          "pressed_up": "Boven ingedrukt",
+          "pressed_down": "Onder ingedrukt",
+          "held_up": "Boven vastgehouden",
+          "held_down": "Onder vastgehouden"
+        }
+      }
+    }
   }
 }

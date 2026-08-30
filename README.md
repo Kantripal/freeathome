@@ -48,17 +48,27 @@ Recently a change has been made to the way switches are exposed in Home Assistan
 Any new installation of this custom component will have `switch_as_x` set to `True` by default. This means that all switches will be exposed as `switch`es and you'll be able to use the HA [switch_as_x](https://www.home-assistant.io/integrations/switch_as_x/) feature. If you want to expose them as `light`s, you can set `switch_as_x` to `False` in your configuration.yaml.
 
 ## Events
-Actuators that are exposed in Home Assistant as binary sensors (typically wall switches) fire an event when pressed. The event type is `freeathome_event` and contains the following actuator's information:
+Actuators that are exposed in Home Assistant as binary sensors (typically wall switches) fire `freeathome_event` events. Normal switch datapoints continue to emit `pressed`. Dimming sensors additionally emit `dim_start` while a rocker is held and `dim_stop` when it is released.
 
-| Key          | Type   | Example                                     |
-|--------------|--------|---------------------------------------------|
-| name         | string | Actuator Hallway                            |
-| serialnumber | string | ABB700CE9999                                |
-| unique_id    | string | ABB700CE9999/ch0000                         |
-| state        | bool   | true for on / false for off                 |
-| command      | string | "pressed" is the only option at this moment |
+| Key          | Type   | Example                                      |
+|--------------|--------|----------------------------------------------|
+| name         | string | Sensor/Dimmaktor 1/1-fach                    |
+| serialnumber | string | ABB700CE9999                                 |
+| unique_id    | string | ABB700CE9999/ch0000                          |
+| state        | bool   | true / false for `pressed` events            |
+| command      | string | `pressed`, `dim_start`, or `dim_stop`        |
+| direction    | string | `up` or `down` for relative dimming events   |
 
-The event fires regardless of the state of the binary sensory in Home Assistant and Free@Home. Each time the wall switch is pressed, the event fires.
+Relative dimming is decoded from the Free@Home Relative Set Value datapoint (pairing ID `0010`, KNX DPT 3.007). A capture from a Free@Home Sensor/Dimmaktor confirmed the following values:
+
+| Raw value | Command     | Direction |
+|-----------|-------------|-----------|
+| `9`       | `dim_start` | `up`      |
+| `8`       | `dim_stop`  | `up`      |
+| `1`       | `dim_start` | `down`    |
+| `0`       | `dim_stop`  | `down`    |
+
+The direction is retained on `dim_stop`, because DPT 3.007 carries the direction bit in both stop values. Other valid DPT 3.007 step codes are decoded in the same way.
 
 These events can be used in automations. For example to turn on a light every time the actuator's "on" button is pressed:
 ```
@@ -75,6 +85,44 @@ action:
       entity_id:
       - light.nice_lamp
 ```
+
+For example, a brightness-increase action can start when the upper rocker is held:
+```
+trigger:
+  - platform: event
+    event_type: freeathome_event
+    event_data:
+      unique_id: ABB700CE9999/ch0000
+      command: dim_start
+      direction: up
+action:
+  - service: light.turn_on
+    target:
+      entity_id: light.nice_lamp
+    data:
+      brightness_step_pct: 10
+      transition: 1
+```
+
+Listen for `command: dim_stop` with the same `unique_id` to stop a repeating brightness action when the rocker is released.
+
+### Dimmer status sensor
+
+Each detected two-sided dimming channel also creates an enum sensor on its
+existing Free@Home device. It shows the last rocker action using exactly four
+states. Single pushbutton channels keep the bus events described above, but do
+not get this four-state sensor because they have no upper/lower rocker pair.
+
+| State          | Meaning               |
+|----------------|-----------------------|
+| `pressed_up`   | Upper rocker pressed  |
+| `pressed_down` | Lower rocker pressed  |
+| `held_up`      | Upper rocker held     |
+| `held_down`    | Lower rocker held     |
+
+Home Assistant translates these states for display. A release still emits the
+`dim_stop` event described above and deliberately leaves the last action visible
+on the status sensor.
 
 
 ## Debugging
