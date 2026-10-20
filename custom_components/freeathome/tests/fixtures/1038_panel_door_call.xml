@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Extracted from a real free@homeTouch 7" panel (deviceId 1038), reduced to the two
+door entry channels: ch0017 (function ID 001E, Door Entry System Call Level Sensor)
+and ch0018 (function ID 001F, Door call). Serial number, floor and room were replaced.
+ch0018 deliberately has no displayName/floor/room attribute, as in the real system,
+so that the device level values are used.
+-->
+<project time="20261014190823370" localTime="20261014210823371" timeStamp="3973813" sessionId="9d87b78" type="debug" mrhaVersion="3.5.4" mrhaBuild="15087">
+ <strings>
+  <string nameId="FFF1">free@homeTouch 7&quot;</string>
+ </strings>
+ <devices>
+  <device profile="0E00" individualAddress="0143" buildNumber="0000054C" interface="TP" deviceFlavor="00" shortSerialNumber="CRQ" iconId="0020" maxAPDULength="37" compilerVersion="007A3CF9" protocolVersion="0002" minConfigVersion="0001" softwareId="154C" softwareVersion="2.1356" domainAddress="A035" deviceId="1038" isTp="true" nameId="FFF1" name="free@homeTouch 7&quot;" serialNumber="ABB7000A0001" commissioningState="ready" consistencyTag="8187" copyId="fff1" notifications="true" progress="100">
+   <attribute name="displayName">free@homeTouch 7&quot; [EG]</attribute>
+   <attribute name="floor">00</attribute>
+   <attribute name="room">01</attribute>
+   <channels>
+    <channel maxScenes="01" channelId="0103" proxyGroup="00" isActive="true" mask="0000FFFF" nameId="0180" persistentId="0017" i="ch0017" cid="ABB60103">
+     <attribute name="displayName">Etagenruftaster</attribute>
+     <attribute name="floor">00</attribute>
+     <attribute name="functionId">1e</attribute>
+     <attribute name="offsetX">0.549962926793982</attribute>
+     <attribute name="offsetY">0.838577334352118</attribute>
+     <attribute name="room">01</attribute>
+     <attribute name="selectedIcon">69</attribute>
+     <functions>
+      <function sensorMatchCode="00000001" accessLevel="Enduser" bestMatch="false" isDefault="true" fixed="false" preconfigured="false" functionId="001E" nameId="0180" actuatorMatchCode="00000000" name="Door Entry System Call Level Sensor"/>
+     </functions>
+     <inputs/>
+     <outputs>
+      <dataPoint dpt="010A" autoConnectRoom="false" pairingId="0002" defaultConnection="true" autoConnectFloor="false" autoConnectHouse="false" matchCode="00000001" maxConnections="01" nameId="000C" name="Timed Start/Stop" i="odp0000" full="false">
+       <value>1</value>
+       <address timeSlot="0" primary="true" singleSink="false">61d9</address>
+      </dataPoint>
+      <dataPoint dpt="1201" autoConnectRoom="false" pairingId="0004" defaultConnection="false" autoConnectFloor="false" autoConnectHouse="false" matchCode="00000001" maxConnections="01" nameId="000E" name="Scene Control" i="odp0001" full="false">
+       <value>0</value>
+      </dataPoint>
+     </outputs>
+     <parameters/>
+     <scenes>
+      <scene isTrigger="true" nameId="0277" name="Scene" active="false" sceneNumber="0" i="sc0000"/>
+     </scenes>
+    </channel>
+    <channel maxScenes="01" channelId="00E3" proxyGroup="00" isActive="true" mask="0000FFFF" nameId="018E" persistentId="0018" i="ch0018" cid="ABB600E3">
+     <attribute name="functionId">1f</attribute>
+     <attribute name="selectedIcon">53</attribute>
+     <functions>
+      <function sensorMatchCode="00000001" accessLevel="Enduser" bestMatch="false" isDefault="true" fixed="false" preconfigured="false" functionId="001F" nameId="0181" actuatorMatchCode="00000000" name="Door call"/>
+     </functions>
+     <inputs/>
+     <outputs>
+      <dataPoint dpt="010A" autoConnectRoom="false" pairingId="0002" defaultConnection="true" autoConnectFloor="false" autoConnectHouse="false" matchCode="00000001" maxConnections="01" nameId="000C" name="Timed Start/Stop" i="odp0000" full="false">
+       <value>1</value>
+       <address timeSlot="0" primary="true" singleSink="false">7a4c</address>
+      </dataPoint>
+      <dataPoint dpt="1201" autoConnectRoom="false" pairingId="0004" defaultConnection="false" autoConnectFloor="false" autoConnectHouse="false" matchCode="00000001" maxConnections="01" nameId="000E" name="Scene Control" i="odp0001" full="false">
+       <value>0</value>
+      </dataPoint>
+     </outputs>
+     <parameters/>
+     <scenes>
+      <scene isTrigger="true" nameId="0277" name="Scene" active="false" sceneNumber="0" i="sc0000"/>
+     </scenes>
+    </channel>
+   </channels>
+  </device>
+ </devices>
+</project>
